@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atış Simülatörü — Taktik Poligon, Analiz ve Kalibrasyon</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js for High-Resolution Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260926_final_v16">
+</head>
+<body>
+    <div class="app-container">
+        <!-- TOP HEADER -->
+        <header class="tactical-header">
+            <div class="logo-area">
+                <i class="fa-solid fa-crosshairs target-icon pulse"></i>
+                <div class="brand-text">
+                    <h1 class="brand-title">SHOOTING SIMULATOR</h1>
+                </div>
+            </div>
+
+            <!-- MAIN TABS NAVIGATION -->
+            <div class="nav-tabs-container">
+                <button class="nav-tab-btn active" id="btnTabSim" data-tab="viewSim">
+                    <i class="fa-solid fa-crosshairs"></i> Atış Poligonu & Senaryolar
+                </button>
+                <button class="nav-tab-btn" id="btnTabPaper" data-tab="viewPaper">
+                    <i class="fa-solid fa-bullseye"></i> Sabit Resmi Hedefler
+                </button>
+                <button class="nav-tab-btn" id="btnTabDuel" data-tab="viewDuel">
+                    <i class="fa-solid fa-people-arrows"></i> 1v1 Çift El Düellosu
+                </button>
+                <button class="nav-tab-btn" id="btnTabAnalytics" data-tab="viewAnalytics">
+                    <i class="fa-solid fa-chart-pie"></i> Performans Analizi
+                </button>
+                <button class="nav-tab-btn" id="btnTabSettings" data-tab="viewSettings">
+                    <i class="fa-solid fa-sliders"></i> Kalibrasyon & Ayarlar
+                </button>
+            </div>
+
+            <div class="header-right">
+                <!-- ATICI PROFİLİ -->
+                <div class="shooter-badge" id="shooterBadge" title="Atıcı Adını Değiştir">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span id="shooterNameText">Ahmet Yılmaz</span>
+                    <i class="fa-solid fa-pen-to-square edit-icon"></i>
+                </div>
+                <div class="clock" id="liveClock">00:00:00</div>
+                <button class="btn btn-sm btn-outline" id="btnFullscreen" title="Tam Ekran">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ==================================================================
+             SEKME 1: SENARYOLAR (KAMERA & EL TAKİBİ & 8 KUTULU POLİGON)
+             ================================================================== -->
+        <div class="tab-view active" id="viewSim">
+            <main class="main-layout">
+                <!-- LEFT / CENTER: VIDEO & CANVAS ARENA -->
+                <section class="video-section">
+                    <div class="video-wrapper" id="videoContainer">
+                        <!-- CANLI KAMERA & HEDEF YAYINI (DONANIM DESTEKLİ MJPEG AKIŞI) -->
+                        <img id="laserVideo" class="stream-video" alt="Canlı Kamera Yayını" src="/video_feed" width="640" height="480" />
+                        
+                        <!-- STREAM OVERLAY HUD (TOP ROW ONLY - NO CENTER OVERLAY) -->
+                        <div class="video-overlay-hud">
+                            <div class="hud-top-bar">
+                                <div class="hud-top-left">
+                                    <span class="rec-badge"><i class="fa-solid fa-circle"></i> CANLI</span>
+                                    <span class="cam-info" id="camInfoBadge"><i class="fa-solid fa-video"></i> WEBCAM (EL TAKİBİ)</span>
+                                    <span class="fps-badge" id="hudFps">30 FPS</span>
+                                </div>
+                                <div class="hud-top-right">
+                                    <span class="hud-mode-badge" id="headerActiveMode">MOD: 1. Sabit Mesafe Poligonu | 10m</span>
+                                </div>
+                            </div>
+                            <div class="hud-center-alert" id="hudCenterAlert"></div>
+                        </div>
+                    </div>
+
+                    <!-- TRIGGER PROGRESS BAR -->
+                    <div class="trigger-bar-panel">
+                        <div class="trigger-label">
+                            <i class="fa-solid fa-hand-pointer"></i>
+                            <span>TETİK BASINCI / ORANI:</span>
+                            <strong id="triggerStatusText" class="status-ready">HAZIR (0.65)</strong>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="triggerProgressFill" style="width: 0%;"></div>
+                        </div>
+                        <div class="trigger-tip" id="triggerTipText">
+                            <i class="fa-solid fa-circle-info"></i> Baş parmağını işaret parmağına dokundur = ATEŞ! (Veya Boşluk tuşuna bas)
+                        </div>
+                    </div>
+
+                    <!-- QUICK CONTROLS TOOLBAR -->
+                    <div class="quick-toolbar">
+                        <!-- ATIS GIRDI MODU: FARE vs LAZER vs EL TAKIBI -->
+                        <div class="quick-input-mode-box">
+                            <span class="quick-input-label"><i class="fa-solid fa-gamepad"></i> GİRDİ:</span>
+                            <div class="input-mode-toggle-group">
+                                <button class="btn-input-mode active" id="btnModeMouse" data-mode="MOUSE" title="Fare ve Boşluk Tuşu ile Atış">
+                                    <i class="fa-solid fa-mouse"></i> Fare
+                                </button>
+                                <button class="btn-input-mode" id="btnModeLaser" data-mode="LASER" title="Fiziksel Oyuncak Lazer Işığı ile Atış">
+                                    <i class="fa-solid fa-bullseye" style="color:#ff3366;"></i> 🔴 Lazer
+                                </button>
+                                <button class="btn-input-mode" id="btnModeHand" data-mode="HAND" title="MediaPipe ile İşaret & Başparmak Atışı">
+                                    <i class="fa-solid fa-hand"></i> ✋ El Takibi
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="quick-weapon-select-box">
+                            <label for="quickSelectWeapon"><i class="fa-solid fa-gun"></i> SİLAH:</label>
+                            <select id="quickSelectWeapon" class="quick-weapon-dropdown">
+                                <option value="Glock19">Glock 19 (Tek Atış)</option>
+                                <option value="CanikTP9">Canik TP9 (Double-Tap)</option>
+                                <option value="SAR9">SAR9 (Ağır Muharebe)</option>
+                                <option value="M4A1">M4A1 (3'lü Seri Atış)</option>
+                            </select>
+                        </div>
+
+                        <!-- MASTER DISTANCE SELECTOR -->
+                        <div class="quick-distance-selector">
+                            <span class="quick-dist-label"><i class="fa-solid fa-ruler-horizontal"></i> MESAFE:</span>
+                            <div class="master-dist-btns">
+                                <button class="btn-master-dist" data-dist="5">5 m</button>
+                                <button class="btn-master-dist active" data-dist="10">10 m</button>
+                                <button class="btn-master-dist" data-dist="15">15 m</button>
+                                <button class="btn-master-dist" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-action" id="btnShoot">
+                            <i class="fa-solid fa-crosshairs"></i> ATEŞ (SPACE)
+                        </button>
+                        <button class="btn btn-action btn-laser-cal" id="btnLaserCalibrateCenter" title="Lazeri hedefin tam ortasına doğrultup bu butona basın, nişangah tam sıfırlanır">
+                            <i class="fa-solid fa-bullseye"></i> LAZERİ SIFIRLA (C)
+                        </button>
+                        <button class="btn btn-action btn-laser-mirror" id="btnLaserToggleMirror" title="Kamera görüntüsünü yatay olarak ayna / düz çevirir">
+                            <i class="fa-solid fa-arrows-left-right-to-line"></i> AYNA (M)
+                        </button>
+                        <button class="btn btn-action" id="btnReset">
+                            <i class="fa-solid fa-rotate-right"></i> SIFIRLA (R)
+                        </button>
+                        <button class="btn btn-action" id="btnCycleDistance" style="display: none;">
+                            <i class="fa-solid fa-arrows-left-right"></i> MESAFE (M)
+                        </button>
+                        <button class="btn btn-action btn-sound-test" id="btnTestSound" title="Silah Sesini Test Et">
+                            <i class="fa-solid fa-volume-high"></i> SES TESTİ
+                        </button>
+                        <a href="/api/download_csv" class="btn btn-action btn-csv" download>
+                            <i class="fa-solid fa-file-csv"></i> SKORLAR
+                        </a>
+                    </div>
+
+                    <!-- POLİGON & SENARYO MERMİ VE SÜRE AYARLARI -->
+                    <div class="sim-options-bar">
+                        <div class="lane-opt-group">
+                            <span class="opt-lbl"><i class="fa-solid fa-layer-group"></i> POLİGON MERMİ:</span>
+                            <button type="button" class="btn-sim-ammo active" data-ammo="unlimited">Sınırsız</button>
+                            <button type="button" class="btn-sim-ammo" data-ammo="5">5</button>
+                            <button type="button" class="btn-sim-ammo" data-ammo="10">10</button>
+                            <button type="button" class="btn-sim-ammo" data-ammo="15">15</button>
+                            <button type="button" class="btn-sim-ammo" data-ammo="20">20</button>
+                            <button type="button" class="btn-sim-ammo" data-ammo="30">30</button>
+                            <div class="custom-val-box">
+                                <input type="number" id="inputSimCustomAmmo" min="1" max="999" placeholder="Özel Mermi..." class="input-custom-val">
+                                <button type="button" class="btn-custom-apply" id="btnApplySimCustomAmmo" title="Özel Mermiyi Ayarla"><i class="fa-solid fa-check"></i></button>
+                            </div>
+                        </div>
+                        <div class="lane-opt-group">
+                            <span class="opt-lbl"><i class="fa-solid fa-stopwatch"></i> POLİGON SÜRE:</span>
+                            <button type="button" class="btn-sim-timer active" data-time="0">Sınırsız</button>
+                            <button type="button" class="btn-sim-timer" data-time="30">30s</button>
+                            <button type="button" class="btn-sim-timer" data-time="60">60s</button>
+                            <button type="button" class="btn-sim-timer" data-time="120">120s</button>
+                            <div class="custom-val-box">
+                                <input type="number" id="inputSimCustomTimer" min="1" max="3600" placeholder="Özel sn..." class="input-custom-val">
+                                <button type="button" class="btn-custom-apply" id="btnApplySimCustomTimer" title="Özel Süreyi Ayarla"><i class="fa-solid fa-check"></i></button>
+                            </div>
+                        </div>
+                        <div class="lane-live-status-group">
+                            <span class="paper-ammo-badge" id="simLiveAmmoBadge"><i class="fa-solid fa-shield-halved"></i> Kalan: ∞</span>
+                            <span class="paper-timer-badge" id="simLiveTimerBadge"><i class="fa-solid fa-clock"></i> Süre: Serbest</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- RIGHT SIDEBAR: TELEMETRY & RECENT SHOTS -->
+                <aside class="sidebar-section">
+                    <div class="telemetry-grid">
+                        <div class="telemetry-card highlight">
+                            <div class="card-icon"><i class="fa-solid fa-trophy"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">TOPLAM SKOR</span>
+                                <span class="card-val glowing" id="statScore">0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-bullseye"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">İSABET ORANI</span>
+                                <span class="card-val" id="statAccuracy">%0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-crosshairs"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">TOPLAM ATIŞ</span>
+                                <span class="card-val" id="statShots">0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-stopwatch"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">SON REAKSİYON</span>
+                                <span class="card-val" id="statReaction">0.00 sn</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECENT SHOTS LOG TABLE -->
+                    <div class="log-container">
+                        <div class="section-title">
+                            <i class="fa-solid fa-clock-rotate-left"></i> SON ATIŞLAR
+                        </div>
+                        <div class="table-responsive">
+                            <table class="tactical-table">
+                                <thead>
+                                    <tr>
+                                        <th>Zaman</th>
+                                        <th>Atıcı</th>
+                                        <th>Puan</th>
+                                        <th>Mesafe</th>
+                                        <th>Süre</th>
+                                        <th>Yöntem</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shotLogsBody">
+                                    <tr>
+                                        <td colspan="6" class="empty-state">Henüz atış yapılmadı.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </aside>
+            </main>
+
+            <!-- ==================================================================
+                 ALT BÖLÜM: DİREKT EKRANDA KUTULAR HALİNDE ATIŞ SENARYOLARI
+                 ALTINDA DOĞRUDAN 5m, 10m, 15m, 20m BUTONLARI
+                 ================================================================== -->
+            <section class="scenario-grid-panel">
+                <div class="scenario-panel-header">
+                    <div class="panel-title-area">
+                        <i class="fa-solid fa-crosshairs"></i>
+                        <div>
+                            <h3>ATIŞ SENARYOLARI VE POLİGON KUTULARI</h3>
+                            <span>Kutuya veya altındaki 5m, 10m, 15m, 20m mesafesine basınca ekranda atış hedefleri anında açılır</span>
+                        </div>
+                    </div>
+                    <div class="active-indicator-pill" id="activeScenarioIndicator">
+                        AKTİF: 1. Sabit Mesafe Poligonu | 10 m
+                    </div>
+                </div>
+
+                <div class="scenario-grid-boxes">
+                    <!-- KUTU 1: Sabit Mesafe Poligonu -->
+                    <div class="scenario-box active" data-id="1" id="scBox1">
+                        <div class="box-top">
+                            <span class="box-num">01</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Sabit Mesafe Poligonu</div>
+                                <div class="box-sub">Klasik Halka Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-bullseye box-icon"></i>
+                        </div>
+                        <p class="box-desc">Hassas nişancılık ve grupman antrenmanı. Sabit dairesel hedef.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="1" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="1" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="1" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="1" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 2: Sağa-Sola Hareket Eden Hedef -->
+                    <div class="scenario-box" data-id="2" id="scBox2">
+                        <div class="box-top">
+                            <span class="box-num">02</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Hareketli Koşan Hedef</div>
+                                <div class="box-sub">Sağa-Sola Süzülen Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-person-running box-icon"></i>
+                        </div>
+                        <p class="box-desc">Ekranda süzülen hareketli hedef. Önleme vererek vur (+%25 Puan).</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="2" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="2" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="2" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="2" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 3: Pop-Up Hızlı Reaksiyon -->
+                    <div class="scenario-box" data-id="3" id="scBox3">
+                        <div class="box-top">
+                            <span class="box-num">03</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Pop-Up Hızlı Reaksiyon</div>
+                                <div class="box-sub">2.8sn Süreli Ani Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-bolt box-icon"></i>
+                        </div>
+                        <p class="box-desc">2.8 saniye içinde hedefe vur, refleks bonusu ve tam puan kazan.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="3" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="3" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="3" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="3" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 4: Trap / Havada Kırılan Plak -->
+                    <div class="scenario-box" data-id="4" id="scBox4">
+                        <div class="box-top">
+                            <span class="box-num">04</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Trap / Havada Plak</div>
+                                <div class="box-sub">Uçan Balistik Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-circle-notch box-icon"></i>
+                        </div>
+                        <p class="box-desc">Aşağıdan fırlatılan kavisli plağı havada patlat (+150 Puan).</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="4" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="4" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="4" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="4" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 5: Çoklu Hedef (Seri Atış) -->
+                    <div class="scenario-box" data-id="5" id="scBox5">
+                        <div class="box-top">
+                            <span class="box-num">05</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Çoklu Hedef (Seri Atış)</div>
+                                <div class="box-sub">3'lü Taktik Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-arrows-split-up-and-left box-icon"></i>
+                        </div>
+                        <p class="box-desc">Aynı anda beliren 3 hedefi sırayla en hızlı şekilde temizle.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="5" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="5" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="5" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="5" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 6: Düşen Çelik Plakalar -->
+                    <div class="scenario-box" data-id="6" id="scBox6">
+                        <div class="box-top">
+                            <span class="box-num">06</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Düşen Çelik Plakalar</div>
+                                <div class="box-sub">Steel Plate Rack</div>
+                            </div>
+                            <i class="fa-solid fa-shield-halved box-icon"></i>
+                        </div>
+                        <p class="box-desc">6 adet profesyonel reaktif IPSC çelik plaka. Balistik darbe ile geriye devrilme ve seri düşürme.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="6" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="6" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="6" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="6" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 7: Gece Görüş & Taktik Fener -->
+                    <div class="scenario-box" data-id="7" id="scBox7">
+                        <div class="box-top">
+                            <span class="box-num">07</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Gece Görüş & Fener</div>
+                                <div class="box-sub">Karanlık Taktik Arama</div>
+                            </div>
+                            <i class="fa-solid fa-flashlight box-icon"></i>
+                        </div>
+                        <p class="box-desc">Karanlık ortamda taktik fener ışığı ile hedefleri ara ve imha et.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="7" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="7" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="7" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="7" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KUTU 8: Resmi B27 Silüet & Taktik Hedef -->
+                    <div class="scenario-box" data-id="8" id="scBox8">
+                        <div class="box-top">
+                            <span class="box-num">08</span>
+                            <div class="box-header-info">
+                                <div class="box-title">Taktik Halka Hedef (HUD)</div>
+                                <div class="box-sub">Yarı Saydam Taktik Hedef</div>
+                            </div>
+                            <i class="fa-solid fa-bullseye box-icon"></i>
+                        </div>
+                        <p class="box-desc">Kamera üzerinde şeffaf dairesel taktik hedef (1-9). Saydam HUD nişangah ve grupman.</p>
+                        <div class="box-distance-row">
+                            <span class="dist-label"><i class="fa-solid fa-ruler-horizontal"></i> Mesafe:</span>
+                            <div class="dist-chips">
+                                <button class="chip-dist" data-sc="8" data-dist="5">5 m</button>
+                                <button class="chip-dist active" data-sc="8" data-dist="10">10 m</button>
+                                <button class="chip-dist" data-sc="8" data-dist="15">15 m</button>
+                                <button class="chip-dist" data-sc="8" data-dist="20">20 m</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ==================================================================
+             SEKME 2: RESMİ HEDEFLER (HEDEF KAĞIDI & GRUPMAN ANALİZİ)
+             ================================================================== -->
+        <div class="tab-view" id="viewPaper">
+            <!-- TOP: HEDEF SEÇİCİ BARI -->
+            <div class="paper-targets-shelf">
+                <div class="shelf-label">
+                    <i class="fa-solid fa-layer-group"></i> RESMİ HEDEF KAĞIDI SEÇİN:
+                </div>
+                <div class="shelf-cards" id="paperTargetCardsList">
+                    <div class="paper-card active" data-tid="1">
+                        <img src="/static/targets/target_1_inverted.png" alt="Taktik Halka Hedef">
+                        <div class="paper-card-info">
+                            <h5>1. Taktik Halka Hedef (1-9)</h5>
+                            <span>Siyah Zemin / Beyaz Halkalar</span>
+                        </div>
+                    </div>
+                    <div class="paper-card" data-tid="2">
+                        <img src="/static/targets/target_4_silhouette.png" alt="B27 Gövde Silüeti">
+                        <div class="paper-card-info">
+                            <h5>2. B27 Taktik Gövde Silüeti</h5>
+                            <span>Gövde Silüeti / 7-8-9 & X Kalp Bölgesi</span>
+                        </div>
+                    </div>
+                    <div class="paper-card" data-tid="3">
+                        <img src="/static/targets/target_3_olympic.png" alt="ISSF Kırmızı Merkez Hedef">
+                        <div class="paper-card-info">
+                            <h5>3. ISSF Kırmızı Merkez Hedef</h5>
+                            <span>Resmi Hassas Hedef (1-9 & Kırmızı Nokta)</span>
+                        </div>
+                    </div>
+                    <div class="paper-card" data-tid="4">
+                        <img src="/static/targets/target_5_hostage.png" alt="Rehine Kurtarma Hedefi">
+                        <div class="paper-card-info">
+                            <h5>4. Rehine Kurtarma & Terörist</h5>
+                            <span>Kafa & Gövde X / Rehine Ceza Bölgesi</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAIN PAPER RANGE LAYOUT -->
+            <div class="paper-range-layout">
+                <section class="paper-lane-section">
+                    <div class="lane-header-bar">
+                        <div class="lane-title">
+                            <i class="fa-solid fa-arrows-down-to-line"></i> KULVAR #1 — <span id="currentPaperName">1. Taktik Halka Hedef (1-9)</span>
+                        </div>
+                        <div class="lane-weapon-picker">
+                            <span class="weapon-lbl"><i class="fa-solid fa-gun"></i> SİLAH:</span>
+                            <select id="paperWeaponSelect" class="paper-weapon-select">
+                                <option value="Glock19">Glock 19 Gen5 (9x19mm)</option>
+                                <option value="CanikTP9">Canik TP9 SFx (9x19mm)</option>
+                                <option value="SAR9">Sarsılmaz SAR9 (9x19mm)</option>
+                                <option value="M4A1">M4A1 Carabine (5.56x45mm)</option>
+                            </select>
+                        </div>
+                        <div class="lane-distance-controls">
+                            <span class="dist-lbl"><i class="fa-solid fa-ruler-horizontal"></i> MESAFE:</span>
+                            <button class="btn-dist" data-dist="5">5m</button>
+                            <button class="btn-dist active" data-dist="10">10m</button>
+                            <button class="btn-dist" data-dist="15">15m</button>
+                            <button class="btn-dist" data-dist="20">20m</button>
+                            <button class="btn-dist" data-dist="25">25m</button>
+                        </div>
+                        <div class="lane-motion-controls">
+                            <span class="motion-lbl"><i class="fa-solid fa-arrows-left-right"></i> MOD:</span>
+                            <button type="button" class="btn-motion active" id="btnTargetStatic" title="Sabit Hedef Modu"><i class="fa-solid fa-bullseye"></i> SABİT</button>
+                            <button type="button" class="btn-motion" id="btnTargetMoving" title="Sağa-Sola Hareketli Hedef Modu"><i class="fa-solid fa-person-running"></i> HAREKETLİ MOD</button>
+                            
+                            <div class="lane-speed-group" id="laneSpeedGroup">
+                                <span class="speed-lbl"><i class="fa-solid fa-gauge-high"></i> HIZ:</span>
+                                <button type="button" class="btn-speed" data-speed="0.5" title="Çok Yavaş (0.5x)">0.5x</button>
+                                <button type="button" class="btn-speed active" data-speed="1.0" title="Sakin / Standart (1x)">1x</button>
+                                <button type="button" class="btn-speed" data-speed="1.5" title="Orta (1.5x)">1.5x</button>
+                                <button type="button" class="btn-speed" data-speed="2.0" title="Hızlı (2x)">2x</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ATIŞ GİRDİ YÖNTEMİ SEÇİCİSİ (FARE / LAZER / EL TAKİBİ) -->
+                    <div class="lane-input-bar">
+                        <div class="lane-input-mode-group">
+                            <span class="input-lbl"><i class="fa-solid fa-gamepad"></i> NİŞAN & GİRDİ:</span>
+                            <button type="button" class="btn-paper-input-mode active" data-mode="MOUSE" id="btnPaperModeMouse">
+                                <i class="fa-solid fa-mouse"></i> 🖱️ FARE & NİŞANGAH
+                            </button>
+                            <button type="button" class="btn-paper-input-mode" data-mode="LASER" id="btnPaperModeLaser">
+                                <i class="fa-solid fa-bullseye" style="color:#ff3366;"></i> 🔴 LAZER MODU (Fiziksel Lazer)
+                            </button>
+                            <button type="button" class="btn-paper-input-mode" data-mode="HAND" id="btnPaperModeHand">
+                                <i class="fa-solid fa-hand"></i> ✋ EL TAKİBİ (Webcam)
+                            </button>
+                        </div>
+                        <div class="lane-input-status" id="paperInputStatusText">
+                            <span class="status-dot blink"></span> <span id="paperInputStatusDesc">🖱️ Fare Modu: Hedefe tıklayın veya boşluk tuşuna basın.</span>
+                        </div>
+                    </div>
+
+                    <!-- KULLANICI ÖZELLEŞTİRME: MERMİ SAYISI & ZAMAN / SÜRE AYARI -->
+                    <div class="lane-options-bar">
+                        <div class="lane-opt-group">
+                            <span class="opt-lbl"><i class="fa-solid fa-layer-group"></i> MERMİ:</span>
+                            <button type="button" class="btn-paper-ammo active" data-ammo="unlimited">Sınırsız</button>
+                            <button type="button" class="btn-paper-ammo" data-ammo="5">5</button>
+                            <button type="button" class="btn-paper-ammo" data-ammo="10">10</button>
+                            <button type="button" class="btn-paper-ammo" data-ammo="15">15</button>
+                            <button type="button" class="btn-paper-ammo" data-ammo="20">20</button>
+                            <button type="button" class="btn-paper-ammo" data-ammo="30">30</button>
+                            <div class="custom-val-box">
+                                <input type="number" id="inputPaperCustomAmmo" min="1" max="999" placeholder="Özel..." class="input-custom-val">
+                                <button type="button" class="btn-custom-apply" id="btnApplyPaperCustomAmmo" title="Özel Mermiyi Ayarla"><i class="fa-solid fa-check"></i></button>
+                            </div>
+                        </div>
+                        <div class="lane-opt-group">
+                            <span class="opt-lbl"><i class="fa-solid fa-stopwatch"></i> SÜRE:</span>
+                            <button type="button" class="btn-paper-timer active" data-time="0">Sınırsız</button>
+                            <button type="button" class="btn-paper-timer" data-time="30">30s</button>
+                            <button type="button" class="btn-paper-timer" data-time="60">60s</button>
+                            <button type="button" class="btn-paper-timer" data-time="120">120s</button>
+                            <div class="custom-val-box">
+                                <input type="number" id="inputPaperCustomTimer" min="1" max="3600" placeholder="Özel sn..." class="input-custom-val">
+                                <button type="button" class="btn-custom-apply" id="btnApplyPaperCustomTimer" title="Özel Süreyi Ayarla"><i class="fa-solid fa-check"></i></button>
+                            </div>
+                        </div>
+                        <div class="lane-live-status-group">
+                            <span class="paper-ammo-badge" id="paperLiveAmmoBadge"><i class="fa-solid fa-shield-halved"></i> Kalan: ∞</span>
+                            <span class="paper-timer-badge" id="paperLiveTimerBadge"><i class="fa-solid fa-clock"></i> Süre: Serbest</span>
+                        </div>
+                    </div>
+
+                    <!-- HEDEF POLİGON GÖRÜNÜM SEÇİCİSİ -->
+                    <div class="lane-view-mode-tabs">
+                        <button class="btn-lane-mode active" id="btnModeClassicPaper">
+                            <i class="fa-solid fa-table-cells"></i> 1. KLASİK KAĞIT HEDEF
+                        </button>
+                        <button class="btn-lane-mode" id="btnModeFpsRange">
+                            <i class="fa-solid fa-gun"></i> 2. 🎮 ELDE SİLAH & 3D POLİGON (ZOOM VE NİŞAN)
+                        </button>
+                    </div>
+
+                    <div class="lane-arena" id="paperLaneContainer">
+                        <div class="target-pulley-cable"></div>
+                        <div class="target-paper-hanger dist-15m" id="targetPaperHanger">
+                            <canvas id="paperCanvas" width="512" height="512" class="paper-canvas"></canvas>
+                        </div>
+                        <!-- ARENA GENELİNDE AKICI EL VE LAZER NİŞANGAH KATMANI -->
+                        <canvas id="paperArenaReticleCanvas" class="paper-arena-reticle-canvas"></canvas>
+                        <div class="paper-hud-alert" id="paperHudAlert"></div>
+                    </div>
+
+                    <!-- 3D FPS POLİGON ALANI (ELDE SİLAH MODELİ & SAĞ TIK / BUTON ZOOM) -->
+                    <div class="fps-range-container" id="fpsRangeContainer" style="display: none;">
+                        <canvas id="fpsCanvas" width="960" height="540" class="fps-canvas"></canvas>
+                        <div class="fps-hud-overlay">
+                            <div class="fps-hud-hint">
+                                <span class="fps-pill"><i class="fa-solid fa-hand"></i> Fare: Silahı Yönlendir (Yukarı / Aşağı)</span>
+                                <span class="fps-pill"><i class="fa-solid fa-crosshairs"></i> Sol Tık / Boşluk: Ateş Et</span>
+                                <button type="button" class="fps-pill fps-zoom-btn" id="fpsZoomToggleBtn">
+                                    <i class="fa-solid fa-magnifying-glass-plus"></i> <span id="fpsZoomBtnText">Sağ Tık / Tıkla: Yakınlaştır (Zoom)</span>
+                                </button>
+                                <button type="button" class="fps-pill fps-motion-btn" id="fpsMotionToggleBtn">
+                                    <i class="fa-solid fa-person-running"></i> <span id="fpsMotionBtnText">Hedef: Sabit</span>
+                                </button>
+                            </div>
+                            <div class="fps-hud-zoom" id="fpsZoomBadge">
+                                <i class="fa-solid fa-eye"></i> 1.0x NORMAL BAKIŞ
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="paper-toolbar">
+                        <button class="btn btn-action" id="btnShootPaper">
+                            <i class="fa-solid fa-gun"></i> ATEŞ ET (SPACE / TIKLA)
+                        </button>
+                        <button class="btn btn-action active" id="btnToggleIronSight">
+                            <i class="fa-solid fa-crosshairs"></i> GEZ-GÖZ-ARPACIK: AÇIK
+                        </button>
+                        <button class="btn btn-action" id="btnResetPaper">
+                            <i class="fa-solid fa-tape"></i> HEDEFİ BANTLA / SIFIRLA (R)
+                        </button>
+                        <button class="btn btn-action" id="btnToggleGrouping">
+                            <i class="fa-solid fa-circle-dot"></i> GRUPMAN ÇEMBERİ: AÇIK
+                        </button>
+                        <a href="/api/download_csv" class="btn btn-action btn-csv" download>
+                            <i class="fa-solid fa-file-csv"></i> SKORLARI İNDİR (CSV)
+                        </a>
+                    </div>
+                </section>
+
+                <aside class="paper-sidebar-section">
+                    <div class="telemetry-grid">
+                        <div class="telemetry-card highlight">
+                            <div class="card-icon"><i class="fa-solid fa-trophy"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">TOPLAM PUAN</span>
+                                <span class="card-val glowing" id="paperStatScore">0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-crosshairs"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">ATIŞ SAYISI</span>
+                                <span class="card-val" id="paperStatShots">0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-bullseye"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">İSABET ORANI</span>
+                                <span class="card-val" id="paperStatAccuracy">%0</span>
+                            </div>
+                        </div>
+
+                        <div class="telemetry-card">
+                            <div class="card-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="card-info">
+                                <span class="card-label">CEZALAR</span>
+                                <span class="card-val" id="paperStatPenalties">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GRUPMAN & BALİSTİK ANALİZ KUTUSU -->
+                    <div class="grouping-panel">
+                        <div class="section-title">
+                            <i class="fa-solid fa-compass-drafting"></i> GRUPMAN & BALİSTİK ANALİZ
+                        </div>
+                        <div class="grouping-details">
+                            <div class="grouping-row">
+                                <span class="lbl">Grupman Yayılım Çapı:</span>
+                                <span class="val highlight-val" id="paperGroupingVal">0.00 cm</span>
+                            </div>
+                            <div class="grouping-row">
+                                <span class="lbl">Açısal Dağılım:</span>
+                                <span class="val" id="paperGroupingMoa">0.00 MOA</span>
+                            </div>
+                            <div class="grouping-row">
+                                <span class="lbl">Vuruş Merkezi (MPI):</span>
+                                <span class="val" id="paperCenterImpact">X: 256, Y: 256</span>
+                            </div>
+                        </div>
+                        <div class="grouping-eval" id="paperGroupingEval">
+                            Henüz en az 2 atış yapılmadı.
+                        </div>
+                    </div>
+
+                    <!-- TARGET RULES & INFO CARD -->
+                    <div class="target-info-box" id="paperTargetInfoBox">
+                        <h4 id="paperTargetInfoTitle">1. Halka Hedef (1-9)</h4>
+                        <p id="paperTargetInfoDesc">Siyah zemin, beyaz halkalar ve boğa gözü.</p>
+                    </div>
+
+                    <!-- RECENT PAPER SHOTS TABLE -->
+                    <div class="log-container">
+                        <div class="section-title">
+                            <i class="fa-solid fa-clock-rotate-left"></i> KAĞIT HEDEF ATIŞLARI
+                        </div>
+                        <div class="table-responsive">
+                            <table class="tactical-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Saat</th>
+                                        <th>Puan</th>
+                                        <th>Vuruş Bölgesi</th>
+                                        <th>Yöntem</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paperLogsBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">Hedefe henüz atış yapılmadı.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             SEKME 3: RAPORLAR & ANALİZ (HATA PASTASI, RİTİM ÇİZELGELERİ, PDF)
+             ================================================================== -->
+        <!-- ==================================================================
+             SEKME 3: RAPORLAR & ANALİZ (İSABET GRAFİKLERİ, HATA ANALİZİ, OTURUM RAPORU)
+             ================================================================== -->
+        <div class="tab-view" id="viewAnalytics">
+            <div class="analytics-layout">
+                <!-- TOP BAR WITH PDF PRINT BUTTON -->
+                <div class="analytics-action-bar">
+                    <div class="analytics-title">
+                        <i class="fa-solid fa-chart-line"></i> PERFORMANS & RESMİ OTURUM ANALİZİ
+                    </div>
+                    <button class="btn btn-action btn-print" id="btnPrintReport">
+                        <i class="fa-solid fa-print"></i> PDF / Yazdır
+                    </button>
+                </div>
+
+                <!-- BÖLÜM 4: 4. İsabet grafikleri (Screenshot 1 - Üst Kısım) -->
+                <div class="analytics-sec-header">4. İsabet Grafikleri</div>
+                <div class="analytics-row-grid-2">
+                    <!-- SOL KART: Atış Isı Haritası -->
+                    <div class="analytics-card">
+                        <div class="card-head">Atış Isı Haritası</div>
+                        <div class="heat-canvas-wrap">
+                            <canvas id="canvasHeatmap" width="340" height="340" class="analytics-target-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- SAĞ KART: Ortalama Vuruş Noktası / Dağılım -->
+                    <div class="analytics-card">
+                        <div class="card-head">Ortalama Vuruş Noktası / Dağılım</div>
+                        <div class="spread-canvas-wrap">
+                            <canvas id="canvasSpread" width="340" height="220" class="analytics-target-canvas"></canvas>
+                        </div>
+                        
+                        <!-- 5'li Gösterge Rozetleri -->
+                        <div class="spread-badges-row">
+                            <div class="sp-badge"><span class="sp-dot blue"></span> Ort. X <strong id="valAvgX">0.0</strong></div>
+                            <div class="sp-badge"><span class="sp-dot blue"></span> Ort. Y <strong id="valAvgY">0.0</strong></div>
+                            <div class="sp-badge"><span class="sp-dot green"></span> Grupman <strong id="valGroupingRadius">0.0 cm</strong></div>
+                            <div class="sp-badge"><span class="sp-dot amber"></span> Vuruş Sayısı <strong id="valImpactsCount">0</strong></div>
+                            <div class="sp-badge"><span class="sp-dot purple"></span> Ort. Mesafe <strong id="valAvgDist">10.0 m</strong></div>
+                        </div>
+
+                        <!-- Özet Metinler -->
+                        <div class="spread-summary-list">
+                            <div class="sum-row"><span>Ortalama Nokta</span> <span>X <strong id="txtAvgPointX">0.0</strong>, Y <strong id="txtAvgPointY">0.0</strong></span></div>
+                            <div class="sum-row"><span>Grupman Yarıçapı</span> <strong id="txtGroupingRadius">0.0 cm</strong></div>
+                            <div class="sum-row"><span>Vuruş Sayısı</span> <strong id="txtVurusSayisi">0</strong></div>
+                            <div class="sum-row"><span>Ortalama Mesafe</span> <strong id="txtOrtMesafe">10.0 m</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BÖLÜM 5: 5. Hata analizi (Screenshot 1 - Alt Kısım) -->
+                <div class="analytics-sec-header">5. Hata Analizi</div>
+                <div class="analytics-row-grid-3">
+                    <!-- SOL: Hata kodu pasta grafiği -->
+                    <div class="analytics-card">
+                        <div class="card-head">Hata Kodu Pasta Grafiği</div>
+                        <div class="chart-container pie-container">
+                            <canvas id="chartFaultPie"></canvas>
+                        </div>
+                        <div class="fault-legend-grid" id="faultLegendGrid">
+                            <!-- Populated dynamically -->
+                        </div>
+                        <div class="fault-avg-trigger" id="faultAvgTrigger">
+                            Ortalama Tetik Skoru: <strong id="txtAvgTriggerScore">0.0</strong>
+                        </div>
+                    </div>
+
+                    <!-- ORTA: Oturumlara Göre Hata Trendi -->
+                    <div class="analytics-card">
+                        <div class="card-head">Oturumlara Göre Hata Trendi</div>
+                        <div class="trend-chart-wrap">
+                            <canvas id="chartErrorTrend"></canvas>
+                        </div>
+                        <div class="dom-fault-header">
+                            <span class="dom-lbl">Baskın Hata</span>
+                            <strong class="dom-val" id="dominantFaultVal">Duruş / Tutuş / Kas (%24.0)</strong>
+                        </div>
+                        <div class="fault-breakdown-list" id="faultBreakdownList">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- SAĞ: Hata Türüne Göre Tetik Skoru -->
+                    <div class="analytics-card">
+                        <div class="card-head">Hata Türüne Göre Tetik Skoru</div>
+                        <div class="trigger-bar-chart-wrap">
+                            <canvas id="chartTriggerByFault"></canvas>
+                        </div>
+                        <div class="trigger-stats-grid">
+                            <div class="trig-stat-box">
+                                <span class="t-lbl">Ort. Tetik</span>
+                                <strong class="t-val" id="statAvgTriggerVal">0.0</strong>
+                            </div>
+                            <div class="trig-stat-box">
+                                <span class="t-lbl">En Düşük Tetik Grubu</span>
+                                <strong class="t-val" id="statLowestTrigger">Duruş / Tutuş / Kas: 22.5</strong>
+                            </div>
+                            <div class="trig-stat-box">
+                                <span class="t-lbl">En İyi Tetik Grubu</span>
+                                <strong class="t-val" id="statBestTrigger">Hatasız (OK): 88.0</strong>
+                            </div>
+                            <div class="trig-stat-box">
+                                <span class="t-lbl">Gösterilen Hata Türleri</span>
+                                <strong class="t-val" id="statFaultTypesCount">7</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BÖLÜM: Oturum Raporu (Resmi Rapor Sayfası) -->
+                <div class="official-report-sheet" id="printableReportSheet">
+                    <div class="report-header">
+                        <div class="report-title-block">
+                            <h3>Oturum Raporu</h3>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-print" id="btnPrintReportInner">
+                            <i class="fa-solid fa-print"></i> PDF / Yazdır
+                        </button>
+                    </div>
+
+                    <!-- GENEL OTURUM BİLGİSİ (15 HÜCRELİ TABLO) -->
+                    <div class="report-block">
+                        <div class="block-title">Genel Oturum Bilgisi</div>
+                        <div class="report-session-grid">
+                            <div class="rep-cell"><span class="rep-lbl">Lazer ID</span><strong class="rep-val" id="repLaserId">1</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Oturum ID</span><strong class="rep-val" id="repSessionId">20260716000216</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Toplam Atış</span><strong class="rep-val" id="repTotalShots">0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Toplam Puan</span><strong class="rep-val" id="repTotalScore">0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Iska Atış</span><strong class="rep-val" id="repMisses">0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Öldürme Atışı</span><strong class="rep-val" id="repKills">0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Zorluk</span><strong class="rep-val" id="repDifficulty">Kolay</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Sağlık Sev.</span><strong class="rep-val" id="repHealth">En Yüksek</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Lazer Noktası</span><strong class="rep-val" id="repLaserStatus">Açık</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Ort. Atış Skoru</span><strong class="rep-val" id="repAvgScore">0.0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">En İyi Atış</span><strong class="rep-val" id="repBestScore">0</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Ort. Atış Aralığı</span><strong class="rep-val" id="repAvgSplit">0.00 sn</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">En Hızlı Atış Aralığı</span><strong class="rep-val" id="repFastestSplit">0.00 sn</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Grupman Yarıçapı</span><strong class="rep-val" id="repGrouping">0.0 cm</strong></div>
+                            <div class="rep-cell"><span class="rep-lbl">Ort. Tetik Skoru</span><strong class="rep-val" id="repAvgTrigger">0.0</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- SENARYO ATIŞ SONUÇLARI (B-27 HEDEFİ ÜZERİNDE DİNAMİK DELİKLER) -->
+                    <div class="report-block">
+                        <div class="block-title">Senaryo Atış Sonuçları</div>
+                        <div class="report-target-center-wrap">
+                            <canvas id="canvasReportSilhouette" width="380" height="420" class="report-b27-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- TETİK SKORU GRAFİĞİ -->
+                    <div class="report-block">
+                        <div class="block-title">Tetik Skoru Grafiği</div>
+                        <div class="report-trigger-full-wrap">
+                            <canvas id="chartTriggerCurve"></canvas>
+                        </div>
+                        <div class="report-trigger-footer" id="repTriggerFooterText">
+                            Oturum ID 20260716000216 için 0 adet tetik skoru yüklendi
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             SEKME 4: AYARLAR & YAZILIM KALİBRASYONU (SCREENSHOT 1)
+             ================================================================== -->
+        <div class="tab-view" id="viewSettings">
+            <div class="settings-layout">
+                <!-- TOP SETTINGS BAR -->
+                <div class="settings-sub-header">
+                    <div class="set-title">
+                        <i class="fa-solid fa-sliders"></i> Lazer Ayarları & Yazılım Kalibrasyonu
+                    </div>
+                    <div class="set-meta-badges">
+                        <span class="badge-laser">Lazer Kartları: <strong>1</strong></span>
+                        <span class="badge-laser green">Aktif Lazerler: <strong>1</strong></span>
+                        <span class="badge-laser">Pasif Lazerler: <strong>0</strong></span>
+                    </div>
+                </div>
+
+                <!-- MAIN SETTINGS CARD -->
+                <div class="settings-card">
+                    <div class="set-card-header">
+                        <div class="laser-status-tag active" id="laserLiveStatusTag">
+                            <span class="dot blink"></span> Lazer: Bekleniyor (Hazır)
+                        </div>
+                    </div>
+
+                    <!-- FİZİKSEL LAZER VE GİRDİ AYARLARI -->
+                    <div class="laser-settings-panel">
+                        <div class="cal-title">
+                            <i class="fa-solid fa-crosshairs" style="color: #ff3366;"></i> Fiziksel Lazer Işığı Algılama Ayarları (OpenCV)
+                        </div>
+                        <p class="cal-desc">
+                            Standart oyuncak/antrenman lazeri kullanırken kameranın sadece lazer ışığını net görmesini sağlar.
+                        </p>
+
+                        <div class="laser-settings-grid">
+                            <!-- 1. Girdi Modu Seçimi -->
+                            <div class="laser-setting-item">
+                                <label><i class="fa-solid fa-gamepad"></i> Atış Giriş Yöntemi:</label>
+                                <div class="segmented-control" id="settingsInputModeGroup">
+                                    <button class="btn-segment active" data-mode="MOUSE"><i class="fa-solid fa-mouse"></i> Fare / Nişangah</button>
+                                    <button class="btn-segment" data-mode="LASER"><i class="fa-solid fa-bullseye" style="color:#ff3366;"></i> Lazer Noktası</button>
+                                    <button class="btn-segment" data-mode="HAND"><i class="fa-solid fa-hand"></i> El Takibi</button>
+                                </div>
+                            </div>
+
+                            <!-- 2. Lazer Rengi Filtresi (HSV) -->
+                            <div class="laser-setting-item laser-only-setting" id="settingLaserColorItem">
+                                <label><i class="fa-solid fa-palette"></i> Lazer Işığı Rengi: <span class="laser-off-tag" id="laserColorOffTag" style="display:none; font-size: 11px; color: var(--text-muted); font-weight: normal; margin-left: auto;">(Pasif - Lazer Modunda Açılır)</span></label>
+                                <div class="segmented-control" id="settingsLaserColorGroup">
+                                    <button class="btn-segment active" data-color="red"><i class="fa-solid fa-circle" style="color:#ff3366;"></i> Kırmızı Lazer</button>
+                                    <button class="btn-segment" data-color="green"><i class="fa-solid fa-circle" style="color:#00f076;"></i> Yeşil Lazer</button>
+                                    <button class="btn-segment" data-color="any"><i class="fa-solid fa-bolt" style="color:#ffb703;"></i> Tüm Işıklar</button>
+                                </div>
+                            </div>
+
+                            <!-- 3. Parlaklık Eşik Değeri (Threshold) -->
+                            <div class="laser-setting-item laser-only-setting" id="settingLaserThresholdItem">
+                                <div class="slider-header">
+                                    <label for="rangeLaserThreshold"><i class="fa-solid fa-sun"></i> Parlaklık Eşiği (Threshold):</label>
+                                    <span class="slider-val-badge" id="valLaserThreshold">230</span>
+                                </div>
+                                <input type="range" id="rangeLaserThreshold" min="100" max="255" value="230" step="1" class="slider-tactical">
+                            </div>
+
+                            <!-- 4. Kamera Pozlama (Exposure) -->
+                            <div class="laser-setting-item laser-only-setting" id="settingLaserExposureItem">
+                                <div class="slider-header">
+                                    <label for="rangeLaserExposure"><i class="fa-solid fa-camera"></i> Kamera Pozlaması (Exposure):</label>
+                                    <span class="slider-val-badge" id="valLaserExposure">-7 EV</span>
+                                </div>
+                                <input type="range" id="rangeLaserExposure" min="-12" max="0" value="-7" step="1" class="slider-tactical">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WEAPON SELECTOR ROW -->
+                    <div class="weapon-selector-section">
+                        <div class="weapon-form-group">
+                            <label for="selectWeaponType"><i class="fa-solid fa-gun"></i> Silah Türü:</label>
+                            <select id="selectWeaponType" class="select-tactical">
+                                <option value="Glock19" selected>Glock 19 Gen5 (9x19mm Parabellum)</option>
+                                <option value="CanikTP9">Canik TP9 SFx (9x19mm Parabellum)</option>
+                                <option value="SAR9">Sarsılmaz SAR9 (9x19mm Parabellum)</option>
+                                <option value="M4A1">M4A1 Carabine (5.56x45mm NATO)</option>
+                            </select>
+                        </div>
+
+                        <!-- WEAPON SHOWCASE CARD (SCREENSHOT 1) -->
+                        <div class="weapon-showcase-box">
+                            <img src="/static/img/glock19.jpg" alt="Glock 19" id="imgWeaponPreview" class="weapon-preview-img">
+                            <div class="weapon-meta">
+                                <h4 id="txtWeaponName">Glock 19 Gen5</h4>
+                                <span id="txtWeaponCaliber">9x19mm Parabellum | 15 Mermi Kapasitesi</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SOFTWARE CALIBRATION (YAZILIM KALİBRASYONU) -->
+                    <div class="calibration-container">
+                        <div class="cal-title">
+                            <i class="fa-solid fa-crosshairs"></i> Yazılım Kalibrasyonu (Zeroing / Sıfırlama)
+                        </div>
+                        <p class="cal-desc">
+                            Kamera pikselleri, izdüşümü ve Unreal konumunu ayarlar; ham kamera noktası değişmeden kalır.
+                        </p>
+
+                        <div class="offsets-grid">
+                            <!-- YATAY OFSET -->
+                            <div class="offset-box">
+                                <span class="off-label">Yatay Ofset (X Ekseni)</span>
+                                <p class="off-sub">Pozitif değer, yansıtılan isabet noktasını sağa taşır.</p>
+                                <div class="offset-controls">
+                                    <div class="offset-val-badge" id="valOffsetX">+5</div>
+                                    <div class="offset-buttons">
+                                        <button class="btn-step" data-axis="x" data-step="-5">--</button>
+                                        <button class="btn-step" data-axis="x" data-step="-1">-</button>
+                                        <button class="btn-step" data-axis="x" data-step="1">+</button>
+                                        <button class="btn-step" data-axis="x" data-step="5">++</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DİKEY OFSET -->
+                            <div class="offset-box">
+                                <span class="off-label">Dikey Ofset (Y Ekseni)</span>
+                                <p class="off-sub">Pozitif değer, yansıtılan isabet noktasını aşağı taşır.</p>
+                                <div class="offset-controls">
+                                    <div class="offset-val-badge" id="valOffsetY">-25</div>
+                                    <div class="offset-buttons">
+                                        <button class="btn-step" data-axis="y" data-step="-5">--</button>
+                                        <button class="btn-step" data-axis="y" data-step="-1">-</button>
+                                        <button class="btn-step" data-axis="y" data-step="1">+</button>
+                                        <button class="btn-step" data-axis="y" data-step="5">++</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="cal-actions">
+                            <span class="cal-info-note"><i class="fa-solid fa-circle-check"></i> Ofsetler kamera ve kağıt hedef atışlarına otomatik uygulanmaktadır.</span>
+                            <button class="btn btn-outline" id="btnResetOffsets">
+                                <i class="fa-solid fa-rotate-left"></i> Ofsetleri Sıfırla
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- STUDENT / SHOOTER PROFILE FORM -->
+                    <div class="profile-editor-container">
+                        <div class="cal-title">
+                            <i class="fa-solid fa-id-card"></i> Öğrenci & Kursiyer Künyesi
+                        </div>
+                        <div class="profile-inputs-grid">
+                            <div class="p-input-group">
+                                <label>Ad:</label>
+                                <input type="text" id="inputProfAd" class="modal-input" value="Ahmet">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Soyad:</label>
+                                <input type="text" id="inputProfSoyad" class="modal-input" value="Yılmaz">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Kullanıcı Adı:</label>
+                                <input type="text" id="inputProfUser" class="modal-input" value="DefaultUser">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Öğrenci Numarası:</label>
+                                <input type="text" id="inputProfNo" class="modal-input" value="2026-0716">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Sınıf / Birlik:</label>
+                                <input type="text" id="inputProfSinif" class="modal-input" value="Taktik-A">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Okul / Birim ID:</label>
+                                <input type="text" id="inputProfOkul" class="modal-input" value="101">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Yaş:</label>
+                                <input type="number" id="inputProfYas" class="modal-input" value="26">
+                            </div>
+                            <div class="p-input-group">
+                                <label>Deneyim Yılı:</label>
+                                <input type="number" id="inputProfDeneyim" class="modal-input" value="3">
+                            </div>
+                        </div>
+                        <div class="profile-save-bar">
+                            <button class="btn btn-action" id="btnSaveProfile">
+                                <i class="fa-solid fa-floppy-disk"></i> Profili Kaydet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             SEKME 5: 1V1 ÇİFT EL DÜELLOSU & YARIŞ MODU (SPLIT SCREEN ARENA)
+             ================================================================== -->
+        <div class="tab-view" id="viewDuel">
+            <div class="duel-master-container">
+                <!-- ARKA PLAN DONANIM DESTEKLİ DÜELLO KAMERA AKIŞI -->
+                <img id="duelVideoStream" data-src="/video_feed?mode=duel" class="duel-stream-hidden" style="position: fixed; top: -9999px; left: -9999px; width: 640px; height: 480px; opacity: 0; pointer-events: none;" alt="Duel Stream">
+
+                <!-- 1. DÜELLO KURULUM & LOBİ EKRANI (KOYU GRİ & KIRIK BEYAZ) -->
+                <div class="duel-lobby-card" id="duelLobbyCard">
+                    <div class="duel-lobby-header">
+                        <div class="duel-lobby-title-block">
+                            <div class="duel-lobby-badge"><i class="fa-solid fa-trophy"></i> 1V1 TAKTİK DÜELLO SİSTEMİ</div>
+                            <h3>DÜELLO MAÇ KURULUMU</h3>
+                            <p>Müsabakaya başlamadan önce aşağıdaki seçenekleri belirleyin; ardından alttaki 'DÜELLOYA BAŞLA' butonuna basarak maçı başlatın.</p>
+                        </div>
+                    </div>
+
+                    <div class="duel-lobby-grid">
+                        <!-- 1. GİRDİ YÖNTEMİ (Sıralama: 1. Fare, 2. Lazer, 3. El Takibi) -->
+                        <div class="duel-lobby-group">
+                            <label><i class="fa-solid fa-gamepad"></i> 1. Atış Yöntemi (Nasıl Atış Yapılacak?)</label>
+                            <div class="duel-lobby-btn-row" id="duelLobbyInputModes">
+                                <button type="button" class="duel-lobby-btn active" data-mode="MOUSE" id="btnDuelModeMouse"><i class="fa-solid fa-mouse"></i> 🖱️ FARE & NİŞANGAH</button>
+                                <button type="button" class="duel-lobby-btn" data-mode="LASER" id="btnDuelModeLaser"><i class="fa-solid fa-bullseye" style="color:#ff3366;"></i> 🔴 LAZER MODU (Fiziksel Lazer)</button>
+                                <button type="button" class="duel-lobby-btn" data-mode="HAND" id="btnDuelModeHand"><i class="fa-solid fa-hand"></i> ✋ EL TAKİBİ (Webcam Parmak Tetiği)</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. HEDEF MODELİ -->
+                        <div class="duel-lobby-group">
+                            <label><i class="fa-solid fa-bullseye"></i> 2. Hedef Modeli & Senaryo</label>
+                            <div class="duel-lobby-btn-row" id="duelTargetOptions">
+                                <button type="button" class="duel-lobby-btn active" data-target="knockdown_plates" title="Vurulan çelik tabaklar geriye doğru devrilir"><i class="fa-solid fa-cubes-stacked"></i> 🎯 Düşen Çelik Tabaklar</button>
+                                <button type="button" class="duel-lobby-btn" data-target="quick_reaction" title="Anlık beliren hızlı refleks hedefi"><i class="fa-solid fa-bolt"></i> ⚡ Hızlı Reaksiyon (Refleks)</button>
+                                <button type="button" class="duel-lobby-btn" data-target="night_flashlight" title="Karanlık arenada taktik fenerle hedef arama"><i class="fa-solid fa-flashlight"></i> 🔦 Karanlık Mod (Gece Feneri)</button>
+                                <button type="button" class="duel-lobby-btn" data-target="multi_target" title="Alanda beliren 5 çoklu taktik hedef"><i class="fa-solid fa-bullseye"></i> 🎯 Çoklu Hedef (CQB)</button>
+                                <button type="button" class="duel-lobby-btn" data-target="trap_clay" title="Havada uçan ve kırılan kil trap plakaları"><i class="fa-solid fa-circle-dot"></i> 💥 Trap / Uçan Plaka</button>
+                                <button type="button" class="duel-lobby-btn" data-target="moving_targets" title="Sağa-sola hareket eden çelik hedef"><i class="fa-solid fa-person-running"></i> 🏃 Hareketli Hedefler</button>
+                                <button type="button" class="duel-lobby-btn" data-target="target_1_inverted.png" title="Resmi 1-10 puanlı poligon hedefi"><i class="fa-solid fa-circle-dot"></i> 🎯 Klasik Halka Hedef</button>
+                                <button type="button" class="duel-lobby-btn" data-target="target_4_silhouette.png" title="Resmi polis/askeri insan gövdesi silüet hedefi"><i class="fa-solid fa-user-shield"></i> 👤 Taktik İnsan Silüeti (B-27)</button>
+                            </div>
+                        </div>
+
+                        <!-- 3. MESAFE (UZAKLIK) -->
+                        <div class="duel-lobby-group">
+                            <label><i class="fa-solid fa-ruler-horizontal"></i> 3. Hedef Uzaklığı (Mesafe)</label>
+                            <div class="duel-lobby-btn-row" id="duelDistanceOptions">
+                                <button type="button" class="duel-lobby-btn" data-dist="5">5 m (Yakın)</button>
+                                <button type="button" class="duel-lobby-btn active" data-dist="10">10 m (Standart)</button>
+                                <button type="button" class="duel-lobby-btn" data-dist="15">15 m (Orta)</button>
+                                <button type="button" class="duel-lobby-btn" data-dist="20">20 m (Uzak)</button>
+                                <button type="button" class="duel-lobby-btn" data-dist="25">25 m (Maksimum)</button>
+                            </div>
+                        </div>
+
+                        <!-- 4. MERMİ SINIRI -->
+                        <div class="duel-lobby-group">
+                            <label><i class="fa-solid fa-layer-group"></i> 4. Mermi Sınırı (Atıcı Başına)</label>
+                            <div class="duel-lobby-btn-row" id="duelAmmoOptions">
+                                <button type="button" class="duel-lobby-btn" data-ammo="5">5 Mermi</button>
+                                <button type="button" class="duel-lobby-btn active" data-ammo="10">10 Mermi</button>
+                                <button type="button" class="duel-lobby-btn" data-ammo="15">15 Mermi</button>
+                                <button type="button" class="duel-lobby-btn" data-ammo="20">20 Mermi</button>
+                                <button type="button" class="duel-lobby-btn" data-ammo="unlimited">Sınırsız (∞)</button>
+                                <div class="custom-val-box-lobby">
+                                    <input type="number" id="inputDuelCustomAmmo" min="1" max="999" placeholder="Özel Mermi (Örn: 25)" class="input-custom-val-lobby">
+                                    <button type="button" class="duel-lobby-btn btn-apply-lobby" id="btnApplyDuelCustomAmmo" title="Özel Mermiyi Ayarla"><i class="fa-solid fa-check"></i> Ayarla</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. SÜRE SINIRI -->
+                        <div class="duel-lobby-group">
+                            <label><i class="fa-solid fa-stopwatch"></i> 5. Süre Sınırı</label>
+                            <div class="duel-lobby-btn-row" id="duelDurationOptions">
+                                <button type="button" class="duel-lobby-btn active" data-duration="30">30 Saniye</button>
+                                <button type="button" class="duel-lobby-btn" data-duration="15">15 Saniye</button>
+                                <button type="button" class="duel-lobby-btn" data-duration="45">45 Saniye</button>
+                                <button type="button" class="duel-lobby-btn" data-duration="60">60 Saniye</button>
+                                <button type="button" class="duel-lobby-btn" data-duration="unlimited">Süresiz</button>
+                                <div class="custom-val-box-lobby">
+                                    <input type="number" id="inputDuelCustomDuration" min="5" max="3600" placeholder="Özel Süre (Örn: 90 sn)" class="input-custom-val-lobby">
+                                    <button type="button" class="duel-lobby-btn btn-apply-lobby" id="btnApplyDuelCustomDuration" title="Özel Süreyi Ayarla"><i class="fa-solid fa-check"></i> Ayarla</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ALTTTAKİ BÜYÜK DÜELLOYA BAŞLA KUTUSU / BUTONU -->
+                    <div class="duel-lobby-footer">
+                        <button type="button" class="btn-duel-launch-main" id="btnDuelStartMatchBig">
+                            <i class="fa-solid fa-play"></i> ⚔️ DÜELLOYA BAŞLA
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MAÇ ESNASINDA ÜST DURUM BARI -->
+                <div class="duel-ingame-bar" id="duelIngameBar" style="display: none;">
+                    <span><i class="fa-solid fa-trophy" style="color:#d97706;"></i> <strong>DÜELLO MAÇI AKTİF</strong> | <span id="duelActiveMetaText">Mod: Düşen Çelik Tabak | 10m | 10 Mermi | 30s</span></span>
+                    <button type="button" class="btn-reopen-lobby" id="btnReopenLobby">
+                        <i class="fa-solid fa-sliders"></i> Lobi & Ayarları Değiştir
+                    </button>
+                </div>
+
+                <!-- 2. ÜST BİLGİ & SKOR TABLOSU (VS BANNER) -->
+                <div class="duel-header-banner" id="duelHeaderBanner" style="display: none;">
+                    <div class="duel-player-card left-player">
+                        <div class="player-badge-line">
+                            <span class="p-tag tag-p1"><i class="fa-solid fa-crosshairs"></i> 1. ATICI (SOL)</span>
+                            <span class="p-status" id="duelP1Status">HAZIR</span>
+                        </div>
+                        <div class="p-main-score">
+                            <span class="p-score-num" id="duelP1Score">0</span>
+                            <span class="p-score-lbl">PUAN</span>
+                        </div>
+                        <div class="p-sub-stats">
+                            <span><i class="fa-solid fa-crosshairs"></i> İsabet: <strong id="duelP1Hits">0/0</strong></span>
+                            <span><i class="fa-solid fa-bullseye"></i> Oran: %<strong id="duelP1Acc">0</strong></span>
+                            <span><i class="fa-solid fa-shield-halved"></i> Kalan Mermi: <strong id="duelP1Ammo">10</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="duel-center-vs">
+                        <div class="duel-vs-circle">VS</div>
+                        <div class="duel-timer-box">
+                            <i class="fa-solid fa-stopwatch"></i>
+                            <span id="duelTimerDisplay">30s</span>
+                        </div>
+                        <div class="duel-leader-pill" id="duelLeaderText">BERABERE</div>
+                        <div class="duel-action-btns">
+                            <button class="btn btn-sm btn-action" id="btnDuelStartMatch">
+                                <i class="fa-solid fa-play"></i> BAŞLAT
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="btnDuelResetMatch">
+                                <i class="fa-solid fa-rotate-left"></i> SIFIRLA
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="duel-player-card right-player">
+                        <div class="player-badge-line">
+                            <span class="p-status" id="duelP2Status">HAZIR</span>
+                            <span class="p-tag tag-p2"><i class="fa-solid fa-crosshairs"></i> 2. ATICI (SAĞ)</span>
+                        </div>
+                        <div class="p-main-score">
+                            <span class="p-score-num" id="duelP2Score">0</span>
+                            <span class="p-score-lbl">PUAN</span>
+                        </div>
+                        <div class="p-sub-stats">
+                            <span><i class="fa-solid fa-shield-halved"></i> Kalan Mermi: <strong id="duelP2Ammo">10</strong></span>
+                            <span><i class="fa-solid fa-crosshairs"></i> İsabet: <strong id="duelP2Hits">0/0</strong></span>
+                            <span><i class="fa-solid fa-bullseye"></i> Oran: %<strong id="duelP2Acc">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ÇİFT EKRAN ARENALARI (SOL ARENA & SİYAH ÇUBUK BÖLÜCÜ & SAĞ ARENA) -->
+                <div class="duel-arenas-grid" id="duelArenasContainer" style="display: none;">
+                    <!-- IPSC GERİ SAYIM & DÜDÜK OVERLAY -->
+                    <div class="duel-countdown-overlay" id="duelCountdownOverlay" style="display: none;">
+                        <div class="countdown-lights">
+                            <span class="c-light red" id="lightRed1"></span>
+                            <span class="c-light red" id="lightRed2"></span>
+                            <span class="c-light green" id="lightGreen"></span>
+                        </div>
+                        <div class="countdown-main-text" id="duelCountdownMainText">ATICI HAZIR...</div>
+                        <div class="countdown-sub-text" id="duelCountdownSubText">STAND BY - DÜDÜĞÜ BEKLEYİN</div>
+                    </div>
+
+                    <!-- SOL ARENA (1. ATICI) -->
+                    <div class="duel-arena-box arena-left" id="duelArenaBoxLeft">
+                        <div class="arena-top-badge">
+                            <span><i class="fa-solid fa-crosshairs"></i> 1. ATICI HEDEFİ</span>
+                            <span class="arena-split-time" id="duelP1SplitTime"><i class="fa-solid fa-stopwatch"></i> -- ms</span>
+                            <span class="arena-trigger-state" id="duelP1TriggerState">Tetik: Hazır</span>
+                        </div>
+                        <div class="duel-canvas-wrapper" id="duelWrapperLeft">
+                            <canvas id="duelCanvasLeft" width="512" height="512" class="duel-target-canvas"></canvas>
+                            <!-- Nişangah / Lazer İmleci -->
+                            <div class="duel-crosshair crosshair-p1" id="duelCrosshairLeft">
+                                <div class="ch-circle"></div>
+                                <div class="ch-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- İKİ EKRAN ARASI SİYAH ÇUBUK / BÖLÜCÜ SÜTUN -->
+                    <div class="duel-screen-divider">
+                        <div class="divider-line"></div>
+                        <div class="divider-badge"><i class="fa-solid fa-arrows-split-up-and-left"></i></div>
+                        <div class="divider-line"></div>
+                    </div>
+
+                    <!-- SAĞ ARENA (2. ATICI) -->
+                    <div class="duel-arena-box arena-right" id="duelArenaBoxRight">
+                        <div class="arena-top-badge">
+                            <span><i class="fa-solid fa-crosshairs"></i> 2. ATICI HEDEFİ</span>
+                            <span class="arena-split-time" id="duelP2SplitTime"><i class="fa-solid fa-stopwatch"></i> -- ms</span>
+                            <span class="arena-trigger-state" id="duelP2TriggerState">Tetik: Hazır</span>
+                        </div>
+                        <div class="duel-canvas-wrapper" id="duelWrapperRight">
+                            <canvas id="duelCanvasRight" width="512" height="512" class="duel-target-canvas"></canvas>
+                            <!-- Nişangah / Lazer İmleci -->
+                            <div class="duel-crosshair crosshair-p2" id="duelCrosshairRight">
+                                <div class="ch-circle"></div>
+                                <div class="ch-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ATICI ADI DEĞİŞTİR -->
+    <div class="modal-backdrop" id="shooterModal" style="display: none;">
+        <div class="modal-box">
+            <h3><i class="fa-solid fa-user-pen"></i> Atıcı Profilini Belirle</h3>
+            <p>Skor kayıtlarında görünecek atıcı adını girin:</p>
+            <input type="text" id="inputShooterName" placeholder="Örn: Ahmet Yılmaz" class="modal-input" maxlength="25">
+            <div class="modal-actions">
+                <button class="btn btn-outline" id="btnCancelShooter">İptal</button>
+                <button class="btn btn-action" id="btnSaveShooter">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DÜELLO SONU ZAFER & BALİSTİK ANALİZ (AAR) -->
+    <div class="modal-backdrop" id="duelVictoryModal" style="display: none;">
+        <div class="modal-box victory-modal-box">
+            <div class="victory-header">
+                <div class="victory-trophy"><i class="fa-solid fa-trophy"></i></div>
+                <h2 id="victoryTitle">1. ATICI ZAFER KAZANDI!</h2>
+                <p id="victorySubtitle" class="victory-subtitle">Tebrikler! Müsabaka tamamlandı.</p>
+            </div>
+            
+            <div class="victory-stats-grid">
+                <!-- 1. Atıcı Kartı -->
+                <div class="victory-card card-p1" id="victoryCardP1">
+                    <div class="v-card-title"><i class="fa-solid fa-hand"></i> 1. ATICI (SOL EL)</div>
+                    <div class="v-card-score" id="vP1Score">0 PUAN</div>
+                    <div class="v-card-rows">
+                        <div><span>İsabet / Atış:</span> <strong id="vP1Hits">0/0</strong></div>
+                        <div><span>İsabet Oranı:</span> <strong id="vP1Acc">%0</strong></div>
+                        <div><span>Ort. Reaksiyon:</span> <strong id="vP1Rx">0.00 sn</strong></div>
+                        <div><span>Grupman Çapı:</span> <strong id="vP1Grouping">0.0 cm</strong></div>
+                        <div><span>Atıcı Teşhisi:</span> <span class="v-diag-badge" id="vP1Diag">Normal</span></div>
+                    </div>
+                </div>
+
+                <!-- VS Rozeti -->
+                <div class="victory-vs-divider">VS</div>
+
+                <!-- 2. Atıcı Kartı -->
+                <div class="victory-card card-p2" id="victoryCardP2">
+                    <div class="v-card-title"><i class="fa-solid fa-hand"></i> 2. ATICI (SAĞ EL)</div>
+                    <div class="v-card-score" id="vP2Score">0 PUAN</div>
+                    <div class="v-card-rows">
+                        <div><span>İsabet / Atış:</span> <strong id="vP2Hits">0/0</strong></div>
+                        <div><span>İsabet Oranı:</span> <strong id="vP2Acc">%0</strong></div>
+                        <div><span>Ort. Reaksiyon:</span> <strong id="vP2Rx">0.00 sn</strong></div>
+                        <div><span>Grupman Çapı:</span> <strong id="vP2Grouping">0.0 cm</strong></div>
+                        <div><span>Atıcı Teşhisi:</span> <span class="v-diag-badge" id="vP2Diag">Normal</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions victory-actions">
+                <button class="btn btn-outline" id="btnDownloadDuelReport"><i class="fa-solid fa-file-arrow-down"></i> Atış Raporunu İndir (PNG)</button>
+                <button class="btn btn-action" id="btnCloseVictoryModal"><i class="fa-solid fa-rotate-right"></i> Yeniden Oyna</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRELOADED TACTICAL AUDIO -->
+    <audio id="sndGunshot_Glock19" src="/static/audio/gunshot_glock19.wav" preload="auto"></audio>
+    <audio id="sndGunshot_CanikTP9" src="/static/audio/gunshot_canik_tp9.wav" preload="auto"></audio>
+    <audio id="sndGunshot_SAR9" src="/static/audio/gunshot_sar9.wav" preload="auto"></audio>
+    <audio id="sndGunshot_M4A1" src="/static/audio/gunshot_m4a1.wav" preload="auto"></audio>
+    <audio id="sndGunshot" src="/static/audio/gunshot.wav" preload="auto"></audio>
+    <audio id="sndSteelHit" src="/static/audio/steel_hit.wav" preload="auto"></audio>
+    <audio id="sndTargetHit" src="/static/audio/target_hit.wav" preload="auto"></audio>
+    <audio id="sndTrapBreak" src="/static/audio/trap_break.wav" preload="auto"></audio>
+
+    <script src="/static/js/main.js?v=20261001_fps_clean_v52"></script>
+</body>
+</html>

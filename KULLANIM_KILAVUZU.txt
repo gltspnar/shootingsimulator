@@ -1,0 +1,26 @@
+========================================================
+     TAKTIK ATIS VE EGITIM SIMULATORU
+========================================================
+
+Bu klasor, Taktik Atis Simulatoru'nun calismasi icin gereken
+BUTUN dosyalari tek bir yerde eksiksiz olarak barindirir.
+
+KLASOR YAPISI:
+--------------
+* baslat.bat          -> Cift tiklayarak uygulamayi ve web arayuzunu tek seferde baslatir.
+* app.py              -> Ana kamera, MediaPipe el takibi ve Flask sunucu yazilimi.
+* nisan_alma.py       -> Alternatif/yedek ana calistirici dosya.
+* skorlar.csv         -> Tum atislarin, puanlarin ve tepki surelerinin kaydedildigi dosya.
+* templates/          -> Web arayuzunun HTML sablonu (index.html).
+* static/
+    - css/            -> Profesyonel arayuz, HUD ve animasyon stilleri (style.css).
+    - js/             -> Gercek zamanli telemetri, hedef, ses ve puanlama motoru (main.js).
+    - targets/        -> 1. Taktik Halka, 2. ISSF Olimpik ve 3. B27 Siluet hedef gorselleri.
+    - audio/          -> Gercek silah sesleri, hedef vurus ve taktik ses efektleri.
+    - img/            -> Silah modelleri, rozetler ve taktik gorseller.
+
+NASIL CALISTIRILIR?
+-------------------
+1. Sadece 'baslat.bat' dosyasina cift tiklayin.
+2. Kamera otomatik acilacak ve tarayicinizda 'http://localhost:5000' adresi gelecektir.
+3. Isaret parmaginizla nisan alin, basparmaginizi yaklastirarak ates edin!
