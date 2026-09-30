@@ -1,10 +1,4 @@
-/**
- * SHOOTING SIMULATOR - PROFESYONEL 4 SEKME KONTROLCÜSÜ
- * 1. Senaryolar (Kamera & El Takibi & 6 Taktik Senaryo)
- * 2. Resmi Hedefler (5 Hedef Kağıdı, Grupman & Mesafe)
- * 3. Raporlar & Analiz (Oturum Analizi, Hata Pastası, Ritim Çizelgeleri, PDF Yazdır)
- * 4. Ayarlar & Kalibrasyon (Glock 19 Silah Seçimi, Yatay/Dikey Ofset Kalibrasyonu)
- */
+
 
 document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
