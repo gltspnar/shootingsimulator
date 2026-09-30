@@ -1,9 +1,7 @@
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // -------------------------------------------------------------
-    // 1. DÖRT SEKMELİ GEZİNTİ SİSTEMİ (4 TABS) - SAĞLAM & GECİKMESİZ
-    // -------------------------------------------------------------
+   
     let activeTab = 'sim';
 
     function switchTab(targetKey) {
@@ -76,12 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Tab buton tıklamaları navTabsContainer delegasyonu ile tekil ve hızlı olarak yönetilmektedir.
-
-
-    // -------------------------------------------------------------
-    // DİJİTAL SAAT & ATICI PROFİLİ MODALI
-    // -------------------------------------------------------------
+    
     const liveClock = document.getElementById('liveClock');
     function updateClock() {
         const now = new Date();
